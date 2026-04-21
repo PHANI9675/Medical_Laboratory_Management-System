@@ -33,8 +33,7 @@ public class RouteLocatorConfig {
             // /patient/profile and /patient/reports are handled by auth-service's
             // own PatientController. Must be declared BEFORE /patient/** below.
             .route("user-service", r -> r
-                .path("/auth/**", "/admin/**", "/labTech/**",
-                      "/patient/profile", "/patient/reports")
+                .path("/auth/**", "/admin/**")
                 .uri("lb://user-service"))
 
             // ── Patient Service ────────────────────────────────────────────
