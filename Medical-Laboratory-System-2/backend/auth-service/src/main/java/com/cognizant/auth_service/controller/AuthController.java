@@ -5,6 +5,7 @@ import com.cognizant.auth_service.dto.AuthResponse;
 import com.cognizant.auth_service.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
