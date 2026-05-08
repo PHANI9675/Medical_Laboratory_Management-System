@@ -32,8 +32,6 @@ public class SecurityConfig {
 
                 // Define which endpoints need authentication
                 .authorizeHttpRequests(auth -> auth
-
-                        // Swagger — allow without token (for testing/docs)
                         .requestMatchers(
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
@@ -42,19 +40,16 @@ public class SecurityConfig {
                                 "/webjars/**"
                         ).permitAll()
 
-                        // Anyone with a valid token can view tests and inventory
                         .requestMatchers(HttpMethod.GET, "/tests/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/inventory/**").authenticated()
 
-                        // Only ADMIN can add or update tests
                         .requestMatchers(HttpMethod.POST, "/tests/**").hasAuthority("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/tests/**").hasAuthority("ADMIN")
 
-                        // Only ADMIN or LAB_TECH can adjust inventory
-                        .requestMatchers(HttpMethod.POST, "/inventory/**")
-                        .hasAnyAuthority("ADMIN", "LAB_TECH")
+                        // Split POST /inventory rules by exact path
+                        .requestMatchers(HttpMethod.POST, "/inventory").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/inventory/adjust").hasAnyAuthority("ADMIN", "LAB_TECH")
 
-                        // Any other request must be authenticated
                         .anyRequest().authenticated()
                 )
 
