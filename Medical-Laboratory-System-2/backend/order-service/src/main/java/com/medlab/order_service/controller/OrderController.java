@@ -33,7 +33,7 @@ public class OrderController {
     }
 
     @GetMapping("/viewOrder/{id}")
-    @PreAuthorize("hasAnyAuthority('PATIENT','LAB_TECH')")
+    @PreAuthorize("hasAnyAuthority('ADMIN','LAB_TECH')")
     public ResponseEntity<?> viewOrder(@PathVariable Long id) {
         Order order = orderService.getOrderById(id);
         if (order.getStatus() == OrderStatus.CANCELLED) {
@@ -49,8 +49,16 @@ public class OrderController {
         return ResponseEntity.ok(order);
     }
 
+
+    @GetMapping("/viewOrderByPatientId")
+    @PreAuthorize("hasAuthority('PATIENT')")
+    public ResponseEntity<List<Order>> viewOrdersByPatientId() {
+        return ResponseEntity.ok(orderService.getOrdersForLoggedInPatient());
+    }
+
+
     @PostMapping("/collectSample/{id}")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN','LAB_TECH')")
     public ResponseEntity<String> collectSample(
             @PathVariable Long id,
             @RequestParam Long collectedBy) {

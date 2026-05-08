@@ -26,6 +26,7 @@ public class PatientController {
     @GetMapping("/profile")
     @PreAuthorize("hasAuthority('PATIENT')")
     public Patient getProfile(Authentication auth) {
+        System.out.println("Fetching profile for user: " + auth.getName());
         return patientService.getProfile(auth.getName());
     }
 

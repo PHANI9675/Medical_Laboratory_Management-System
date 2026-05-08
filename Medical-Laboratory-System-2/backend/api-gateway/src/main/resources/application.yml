@@ -2,6 +2,11 @@ server:
   port: 8090
 
 spring:
+  security:
+    user:
+      name: admin
+      password: admin
+
   application:
     name: api-gateway
 
@@ -30,11 +35,10 @@ spring:
         # -- Auth Service (user-service) ------------------------------------
         # /patient/profile and /patient/reports are intentionally listed here
         # because auth-service has its own PatientController for those two
-        # paths. All other /patient/** routes go to patient-service below.
         - id: user-service
           uri: lb://user-service
           predicates:
-            - Path=/auth/**,/admin/**,/labTech/**,/patient/profile,/patient/reports
+            - Path=/auth/**,/admin/**
 
         # -- Patient Service ------------------------------------------------
         - id: patient-service

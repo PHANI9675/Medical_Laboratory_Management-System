@@ -2,6 +2,11 @@ server:
   port: 8084
 
 spring:
+
+  security:
+    user:
+      name: admin
+      password: admin
   application:
     name: inventory-service
 

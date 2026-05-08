@@ -200,6 +200,28 @@ public class OrderService {
         notifyOrderCancelled(order);
     }
 
+    // ── Get Orders for Logged-in Patient ─────────────────────────
+
+    @Transactional(readOnly = true)
+    public List<Order> getOrdersForLoggedInPatient() {
+
+        // Resolve patientId from Patient Service using JWT
+        PatientResponse patient = patientClient.getMyProfile();
+
+        if (patient == null || patient.getId() == null) {
+            throw new IllegalStateException(
+                    "Cannot fetch orders: patient profile not found. " +
+                            "Please create your profile first.");
+        }
+
+        Long patientId = patient.getId();
+
+        log.info("Fetching orders for patientId={} username={}",
+                patientId, patient.getUsername());
+
+        return orderRepository.findByPatientId(patientId);
+    }
+
     // ── Private — notification helpers ───────────────────────
 
     /**
