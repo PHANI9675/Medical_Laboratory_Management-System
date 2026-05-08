@@ -1,10 +1,14 @@
-package com.medlab.inventory;
+package com.medlab.inventory.service;
 
 import com.medlab.inventory.client.NotificationClient;
 import com.medlab.inventory.dto.AdjustInventoryRequest;
+import com.medlab.inventory.dto.CreateInventoryRequest;
 import com.medlab.inventory.dto.InventoryItemResponse;
 import com.medlab.inventory.dto.LowStockNotificationRequest;
 import com.medlab.inventory.entity.InventoryItem;
+import com.medlab.inventory.exception.DuplicateResourceException;
+import com.medlab.inventory.exception.InsufficientStockException;
+import com.medlab.inventory.exception.ResourceNotFoundException;
 import com.medlab.inventory.repository.InventoryItemRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,32 +25,49 @@ public class InventoryService {
     private final InventoryItemRepository repo;
     private final NotificationClient notificationClient;
 
-    /**
-     * Admin username to notify on low-stock events.
-     * Configured in application.yaml: inventory.notification.admin-username
-     * NOT sent to patients — this is an internal operational alert only.
-     */
     @Value("${inventory.notification.admin-username}")
     private String adminUsername;
+
+    // ── Get All Items ────────────────────────────────────────────────────────
 
     public List<InventoryItemResponse> getAllItems() {
         return repo.findAll().stream().map(this::toResponse).toList();
     }
 
+    // ── Create New Item ──────────────────────────────────────────────────────
+
+    public InventoryItemResponse createItem(CreateInventoryRequest req) {
+        if (repo.existsByItemName(req.getItemName())) {
+            throw new DuplicateResourceException(
+                    "Item '" + req.getItemName() + "' already exists");
+        }
+        InventoryItem item = new InventoryItem();
+        item.setItemName(req.getItemName());
+        item.setQuantity(req.getQuantity());
+        item.setUnit(req.getUnit());
+        item.setDescription(req.getDescription());
+        item.setLowStockThreshold(
+                req.getLowStockThreshold() != null ? req.getLowStockThreshold() : 10
+        );
+        return toResponse(repo.save(item));
+    }
+
+    // ── Adjust Stock ─────────────────────────────────────────────────────────
+
     public InventoryItemResponse adjustStock(AdjustInventoryRequest req) {
         InventoryItem item = repo.findById(req.getItemId())
-                .orElseThrow(() -> new RuntimeException("Inventory item not found with id: " + req.getItemId()));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Inventory item not found with id: " + req.getItemId()));
 
         int newQty = item.getQuantity() + req.getQuantityChange();
         if (newQty < 0) {
-            throw new RuntimeException("Insufficient stock. Current quantity: " + item.getQuantity());
+            throw new InsufficientStockException(
+                    "Insufficient stock. Current quantity: " + item.getQuantity());
         }
+
         item.setQuantity(newQty);
         InventoryItem saved = repo.save(item);
 
-        // INTEGRATION: send low-stock alert to ADMIN (not patient) via Notification_service
-        // Triggered whenever stock falls to or below the item's configured threshold.
-        // Failure is non-blocking — a notification error must never roll back a stock adjustment.
         int threshold = saved.getLowStockThreshold() != null ? saved.getLowStockThreshold() : 10;
         if (newQty <= threshold) {
             sendLowStockAlert(saved, newQty, threshold);
@@ -55,7 +76,7 @@ public class InventoryService {
         return toResponse(saved);
     }
 
-    // ── Private helpers ──────────────────────────────────────────────────────
+    // ── Private Helpers ──────────────────────────────────────────────────────
 
     private void sendLowStockAlert(InventoryItem item, int currentQty, int threshold) {
         try {
@@ -74,7 +95,6 @@ public class InventoryService {
                     adminUsername, item.getItemName(), currentQty, threshold);
 
         } catch (Exception ex) {
-            // Never block the stock adjustment if notification fails
             log.error("Failed to send low-stock alert for item='{}': {}",
                     item.getItemName(), ex.getMessage());
         }
@@ -88,7 +108,8 @@ public class InventoryService {
         r.setUnit(i.getUnit());
         r.setDescription(i.getDescription());
         r.setLowStockThreshold(i.getLowStockThreshold());
-        r.setLowStock(i.getQuantity() <= i.getLowStockThreshold());
+        int threshold = i.getLowStockThreshold() != null ? i.getLowStockThreshold() : 10;
+        r.setLowStock(i.getQuantity() <= threshold);
         return r;
     }
 }
